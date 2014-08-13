@@ -33,15 +33,34 @@ main = hakyll $ do
         route $ niceRoute
         compile $ pandocCompiler
             >>= loadAndApplyTemplate "templates/page.html" postCtx
+            >>= saveSnapshot "content"
             >>= loadAndApplyTemplate "templates/base.html" postCtx
             >>= relativizeUrls
             >>= removeIndexHtml
+
+    create ["feed.xml"] $ do
+        route idRoute
+        compile $ do
+            let feedCtx = postCtx `mappend` bodyField "description"
+            posts <- fmap (take 10) . recentFirst =<<
+                loadAllSnapshots "articles/*" "content"
+            renderAtom myFeedConfiguration feedCtx posts
 
 --------------------------------------------------------------------------------
 postCtx :: Context String
 postCtx =
     dateField "date" "%B %e, %Y" `mappend`
     defaultContext
+
+--------------------------------------------------------------------------------
+myFeedConfiguration :: FeedConfiguration
+myFeedConfiguration = FeedConfiguration
+    { feedTitle       = "House Jeffries"
+    , feedDescription = ""
+    , feedAuthorName  = "Ian G. Jeffries"
+    , feedAuthorEmail = "ian@housejeffries.com"
+    , feedRoot        = "http://housejeffries.com"
+    }
 
 --------------------------------------------------------------------------------
 -- Create "foo/index.html" pages instead of "foo.html" pages. These show up as

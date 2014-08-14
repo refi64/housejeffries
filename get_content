@@ -1,0 +1,11 @@
+# The hakyll source (this directory).
+sourcedir=/home/traveller/code/housejeffries/housejeffries
+
+# The content directory (with articles etc.)
+contentdir=/home/traveller/writing/housejeffries-content
+
+
+rm -rf $hjsource/articles
+cp -r $contentdir/articles $sourcedir
+
+cp $contentdir/index.md $sourcedir/index.md

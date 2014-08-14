@@ -23,6 +23,10 @@ main = hakyll $ do
         route   idRoute
         compile copyFileCompiler
 
+    match "pgp.txt" $ do
+        route   idRoute
+        compile copyFileCompiler
+
     match "index.md" $ do
         route $ setExtension "html"
         compile $ pandocCompiler

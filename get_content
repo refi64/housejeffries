@@ -1,11 +1,11 @@
-# The hakyll source (this directory).
-sourcedir=/home/traveller/code/housejeffries/housejeffries
+# The content repo (with articles etc).
+src=/home/traveller/writing/housejeffries-content
 
-# The content directory (with articles etc.)
-contentdir=/home/traveller/writing/housejeffries-content
+# This repo's content dir.
+dest=/home/traveller/code/mine/housejeffries/housejeffries/_content
 
+rm -rf $dest
+mkdir $dest
 
-rm -rf $hjsource/articles
-cp -r $contentdir/articles $sourcedir
-
-cp $contentdir/index.md $sourcedir/index.md
+cp -r $src/articles $dest
+cp $src/index.md $dest

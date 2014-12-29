@@ -1,0 +1,61 @@
+# Condensed from here:
+# http://stackoverflow.com/questions/13235180/how-to-remove-trailing-slash-for-folder-index-html-when-index-html-is-stri
+
+
+# Turn MultiViews off. (MultiViews on causes /abc to go to /abc.ext.)
+Options +FollowSymLinks -MultiViews
+
+# It stops DirectorySlash from being processed if mod_rewrite isn't.
+<IfModule mod_rewrite.c>
+
+    # Disable mod_dir adding missing trailing slashes to directory requests.
+    DirectorySlash Off
+
+    RewriteEngine On
+
+    # If it's a request to index(.html)
+    RewriteCond %{THE_REQUEST} \ /(.+/)?index(\.html)?(\?.*)?\  [NC]
+    # Remove it..
+    RewriteRule ^(.+/)?index(\.html)?$ /%1 [R=301,L]
+
+    # if request has a trailing slash
+    RewriteCond %{REQUEST_URI} ^/(.*)/$
+    # but it isn't a directory
+    RewriteCond %{DOCUMENT_ROOT}/%1 !-d
+    # and if the trailing slash is removed and a .html appended to the end, it IS a file
+    RewriteCond %{DOCUMENT_ROOT}/%1.html -f
+    # redirect without trailing slash
+    RewriteRule ^ /%1 [L,R=301]
+
+    # Add missing trailing slashes to directories if a matching .html does not exist..
+    # If it's a request to a directory.
+    RewriteCond %{REQUEST_FILENAME}/ -d
+    # And a HTML file does not (!) exist.
+    RewriteCond %{REQUEST_FILENAME}/index.html !-f
+    # And there is not trailing slash redirect to add it.
+    RewriteRule [^/]$ %{REQUEST_URI}/ [R=301,L]
+
+    # Remove HTML extensions.
+    # If it's a request from a browser, not an internal request by Apache/mod_rewrite..
+    RewriteCond %{ENV:REDIRECT_STATUS} ^$
+    # And the request has a HTML extension. Redirect to remove it.
+    RewriteRule ^(.+)\.html$ /$1 [R=301,L]
+
+    # If the request exists with a .html extension.
+    RewriteCond %{SCRIPT_FILENAME}.html -f
+    # And there is no trailing slash, rewrite to add the .html extension.
+    RewriteRule [^/]$ %{REQUEST_URI}.html [QSA,L]
+
+    RewriteCond %{REQUEST_FILENAME} -d
+    # And a HTML file exists.
+    RewriteCond %{REQUEST_FILENAME}/index.html -f
+    # And there is a trailing slash redirect to remove it.
+    RewriteRule ^(.*?)/$ /$1 [R=301,L]
+
+    RewriteCond %{REQUEST_FILENAME} -d
+    # And a HTML file exists.
+    RewriteCond %{REQUEST_FILENAME}/index.html -f
+    # And there is no trailing slash show the index.html.
+    RewriteRule [^/]$ %{REQUEST_URI}/index.html [L]
+
+</IfModule>

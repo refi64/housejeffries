@@ -1,7 +1,7 @@
 --------------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
 import Data.List (isInfixOf)
-import Data.Monoid (mappend)
+import Data.Monoid ((<>))
 import Hakyll
 import qualified System.FilePath as Native
 import System.FilePath.Posix
@@ -21,57 +21,54 @@ myConfig = defaultConfiguration {ignoreFile = const False}
 --------------------------------------------------------------------------------
 main :: IO ()
 main = hakyllWith myConfig $ do
-    match "resources/*" $ do
-        route $ customRoute $ dropDirectory1 . toFilePath
-        compile copyFileCompiler
+  match "resources/*" $ do
+    route dropFirstDir
+    compile copyFileCompiler
 
-    match "css/*" $ do
-        route   idRoute
-        compile compressCssCompiler
+  match "css/*" $ do
+    route idRoute
+    compile compressCssCompiler
 
-    match "templates/*" $ compile templateCompiler
+  match "templates/*" $ compile templateCompiler
 
-    match "_content/index.md" $ do
-        -- NOTE: I'd like to use dropDirectory1 only within the Main
-        -- function, but so far the simplest way seems to be to embed
-        -- it into niceRoute and setExtension'.
-        route $ setExtension' "html"
-        compile $ pandocCompiler
-            >>= loadAndApplyTemplate "templates/base.html" defaultContext
-            >>= relativizeUrls
+  match "_content/index.md" $ do
+    route $ setExtension "html" `composeRoutes` dropFirstDir
+    compile $ pandocCompiler
+      >>= loadAndApplyTemplate "templates/base.html" defaultContext
+      >>= relativizeUrls
 
-    match "_content/articles/*" $ do
-        route niceRoute
-        compile $ pandocCompiler
-            >>= loadAndApplyTemplate "templates/page.html" postCtx
-            >>= saveSnapshot "content"
-            >>= loadAndApplyTemplate "templates/base.html" postCtx
-            >>= relativizeUrls
-            >>= removeIndexHtml
+  match "_content/articles/*" $ do
+    route $ niceRoute `composeRoutes` dropFirstDir
+    compile $ pandocCompiler
+      >>= loadAndApplyTemplate "templates/page.html" postCtx
+      >>= saveSnapshot "content"
+      >>= loadAndApplyTemplate "templates/base.html" postCtx
+      >>= relativizeUrls
+      >>= removeIndexHtml
 
-    create ["feed.xml"] $ do
-        route idRoute
-        compile $ do
-            let feedCtx = postCtx `mappend` bodyField "description"
-            posts <- fmap (take 10) . recentFirst =<<
-                loadAllSnapshots "articles/*" "content"
-            renderAtom myFeedConfig feedCtx posts
+  create ["feed.xml"] $ do
+    route idRoute
+    compile $ do
+      let feedCtx = postCtx <> bodyField "description"
+      posts <- fmap (take 10) . recentFirst =<<
+        loadAllSnapshots "articles/*" "content"
+      renderAtom myFeedConfig feedCtx posts
 
 --------------------------------------------------------------------------------
 postCtx :: Context String
 postCtx =
-    dateField "date" "%B %e, %Y" `mappend`
-    defaultContext
+  dateField "date" "%B %e, %Y" <>
+  defaultContext
 
 --------------------------------------------------------------------------------
 myFeedConfig :: FeedConfiguration
 myFeedConfig = FeedConfiguration
-    { feedTitle       = "House Jeffries"
-    , feedDescription = ""
-    , feedAuthorName  = "Ian G. Jeffries"
-    , feedAuthorEmail = "ian@housejeffries.com"
-    , feedRoot        = "http://housejeffries.com"
-    }
+  { feedTitle       = "House Jeffries"
+  , feedDescription = ""
+  , feedAuthorName  = "Ian G. Jeffries"
+  , feedAuthorEmail = "ian@housejeffries.com"
+  , feedRoot        = "http://housejeffries.com"
+  }
 
 --------------------------------------------------------------------------------
 -- | Create "foo/index.html" pages instead of "foo.html" pages. These show up as
@@ -86,7 +83,7 @@ niceRoute :: Routes
 niceRoute = customRoute createIndexRoute
   where
     createIndexRoute ident =
-      dropDirectory1 $ takeDirectory p </> takeBaseName p </> "index.html"
+      takeDirectory p </> takeBaseName p </> "index.html"
       where
         p = toFilePath ident
 
@@ -104,11 +101,9 @@ removeIndexStr url = case splitFileName url of
     isLocal uri = not ("://" `isInfixOf` uri)
 
 --------------------------------------------------------------------------------
-setExtension' :: String -> Routes
-setExtension' extension = customRoute $
-  (`replaceExtension` extension) . dropDirectory1 . toFilePath
+dropFirstDir :: Routes
+dropFirstDir = customRoute $ dropDirectory1 . toFilePath
 
---------------------------------------------------------------------------------
 -- | Comments and code from here:
 -- https://hackage.haskell.org/package/shake-0.3.4/docs/src/Development-Shake-FilePath.html#dropDirectory1
 --

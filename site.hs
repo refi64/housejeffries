@@ -13,7 +13,6 @@ import System.FilePath.Posix
   )
 
 --------------------------------------------------------------------------------
-
 -- | Don't ignore any files (e.g. dotfiles like .htaccess).
 myConfig :: Configuration
 myConfig = defaultConfiguration {ignoreFile = const False}

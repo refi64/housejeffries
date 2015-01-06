@@ -1,7 +1,8 @@
 body {
-
   /* Center the body. */
   margin: 0 auto;
 
   max-width: 38em;
+
+  padding: 20px;
 }

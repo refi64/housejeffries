@@ -1,7 +1,7 @@
---------------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
+
 import Data.List (isInfixOf)
-import Data.Monoid ((<>))
+import Data.Monoid
 import Hakyll
 import qualified System.FilePath as Native
 import System.FilePath.Posix
@@ -12,12 +12,12 @@ import System.FilePath.Posix
   , takeDirectory
   )
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- | Don't ignore any files (e.g. dotfiles like .htaccess).
 myConfig :: Configuration
 myConfig = defaultConfiguration {ignoreFile = const False}
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 main :: IO ()
 main = hakyllWith myConfig $ do
   match "resources/*" $ do
@@ -53,13 +53,13 @@ main = hakyllWith myConfig $ do
         loadAllSnapshots "articles/*" "content"
       renderAtom myFeedConfig feedCtx posts
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 postCtx :: Context String
 postCtx =
   dateField "date" "%B %e, %Y" <>
   defaultContext
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 myFeedConfig :: FeedConfiguration
 myFeedConfig = FeedConfiguration
   { feedTitle       = "House Jeffries"
@@ -69,7 +69,7 @@ myFeedConfig = FeedConfiguration
   , feedRoot        = "http://housejeffries.com"
   }
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- | Create "foo/index.html" pages instead of "foo.html" pages. These show up as
 -- just "foo" in the browser, which looks nicer than "foo.html".
 --
@@ -99,7 +99,7 @@ removeIndexStr url = case splitFileName url of
   where
     isLocal uri = not ("://" `isInfixOf` uri)
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 dropFirstDir :: Routes
 dropFirstDir = customRoute $ dropDirectory1 . toFilePath
 

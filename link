@@ -4,8 +4,5 @@ src=/home/traveller/writing/housejeffries-content
 # This repo's content dir.
 dest=/home/traveller/code/mine/housejeffries/housejeffries/_content
 
-rm -rf $dest
-mkdir $dest
-
-cp -r $src/articles $dest
-cp $src/index.md $dest
+rm $dest
+ln -s $src $dest

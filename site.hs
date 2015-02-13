@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+module Main where
+
 import Data.List (isInfixOf)
 import Data.Monoid
 import Hakyll
@@ -49,14 +51,15 @@ main = hakyllWith myConfig $ do
     route idRoute
     compile $ do
       let feedCtx = postCtx <> bodyField "description"
-      posts <- fmap (take 10) . recentFirst =<<
-        loadAllSnapshots "articles/*" "content"
+      posts <- recentFirst =<<
+        loadAllSnapshots "_content/articles/*" "content"
       renderAtom myFeedConfig feedCtx posts
 
 ----------------------------------------------------------------------
 postCtx :: Context String
 postCtx =
-  dateField "date" "%B %e, %Y" <>
+  -- E.g. February 3, 2015
+  dateField "published" "%B %e, %Y" <>
   defaultContext
 
 ----------------------------------------------------------------------

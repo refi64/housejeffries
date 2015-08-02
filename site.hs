@@ -1,27 +1,24 @@
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
 
-import Data.List (isInfixOf)
-import Data.Monoid
-import Hakyll
-import qualified System.FilePath as Native
-import System.FilePath.Posix
-  ( (</>)
-  , replaceExtension
-  , splitFileName
-  , takeBaseName
-  , takeDirectory
-  )
+import           Data.List             (isInfixOf)
+import           Data.Monoid
+import           Hakyll
+import qualified System.FilePath       as Native
+import           System.FilePath.Posix (replaceExtension, splitFileName,
+                                        takeBaseName, takeDirectory, (</>))
 
 ----------------------------------------------------------------------
 -- | Don't ignore any files (e.g. dotfiles like .htaccess).
 myConfig :: Configuration
-myConfig = defaultConfiguration {ignoreFile = const False}
+myConfig = defaultConfiguration { ignoreFile = const False }
 
 ----------------------------------------------------------------------
 main :: IO ()
 main = hakyllWith myConfig $ do
+
   match "resources/*" $ do
     route dropFirstDir
     compile copyFileCompiler
@@ -47,20 +44,21 @@ main = hakyllWith myConfig $ do
       >>= relativizeUrls
       >>= removeIndexHtml
 
+  match "_content/articles/*" $ version "md" $ do
+    route dropFirstDir -- Assumes all files in /articles/* are .md files.
+    compile copyFileCompiler
+
   create ["feed.xml"] $ do
     route idRoute
     compile $ do
       let feedCtx = postCtx <> bodyField "description"
-      posts <- recentFirst =<<
-        loadAllSnapshots "_content/articles/*" "content"
+      posts <- recentFirst =<< loadAllSnapshots ("_content/articles/*" .&&. hasNoVersion) "content"
       renderAtom myFeedConfig feedCtx posts
 
 ----------------------------------------------------------------------
 postCtx :: Context String
-postCtx =
-  -- E.g. February 3, 2015
-  dateField "published" "%B %e, %Y" <>
-  defaultContext
+postCtx = dateField "published" "%B %e, %Y" -- e.g. February 3, 2015
+            <> defaultContext
 
 ----------------------------------------------------------------------
 myFeedConfig :: FeedConfiguration

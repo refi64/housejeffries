@@ -3,6 +3,7 @@
 
 module Main where
 
+import           Control.Monad
 import           Data.List             (isInfixOf)
 import           Data.Monoid
 import           Hakyll
@@ -63,7 +64,12 @@ main = hakyllWith myConfig $ do
     route idRoute
     compile $ do
       let feedCtx = pageContext <> bodyField "description"
-      pages <- recentFirst =<< loadAllSnapshots ("_pages/*" .&&. hasNoVersion) "pageSnapshot"
+      let match = complement "_pages/1/page.md" .&&. "_pages/*/page.md" .&&. hasNoVersion
+      pages <- recentFirst =<< loadAllSnapshots match "pageSnapshot"
+
+      -- The feed's usual failure mode is to silently not include any articles.
+      when (length pages < 1) $ error "No items in Atom feed."
+
       renderAtom myFeedConfig feedCtx pages
 
 pageContext :: Context String

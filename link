@@ -1,8 +1,8 @@
 # The content repo (with articles etc).
-src=/home/traveller/writing/housejeffries-content
+src=/home/traveller/code/mine/hjbase/hjpages
 
 # This repo's content dir.
-dest=/home/traveller/code/mine/housejeffries/housejeffries/_content
+dest=/home/traveller/code/mine/hjbase/hjexec/_pages
 
 rm $dest
 ln -s $src $dest

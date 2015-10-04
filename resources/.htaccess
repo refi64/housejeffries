@@ -1,5 +1,15 @@
-# Condensed from here:
-# http://stackoverflow.com/questions/13235180/how-to-remove-trailing-slash-for-folder-index-html-when-index-html-is-stri
+# Backwards compatibility.
+Redirect 301 "/articles/what-is-tent" "http://housejeffries.com/page/2"
+Redirect 301 "/articles/unix-delenda-est" "http://housejeffries.com/page/3"
+
+
+
+# The rest of the file deals with removing trailing slashes.
+#
+# It's condensed from here:
+#
+#     http://stackoverflow.com/questions/13235180/how-to-remove-trailing-slash-for-folder-index-html-when-index-html-is-stri
+
 
 
 # Turn MultiViews off. (MultiViews on causes /abc to go to /abc.ext.)

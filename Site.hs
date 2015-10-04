@@ -7,15 +7,24 @@ import           Data.List             (isInfixOf)
 import           Data.Monoid
 import           Hakyll
 import qualified System.FilePath       as Native
-import           System.FilePath.Posix (replaceExtension, splitFileName,
-                                        takeBaseName, takeDirectory, (</>))
+import           System.FilePath.Posix (replaceExtension, splitDirectories,
+                                        splitFileName, takeBaseName,
+                                        takeDirectory, (</>))
+import           Text.Read             (readMaybe)
 
-----------------------------------------------------------------------
 -- | Don't ignore any files (e.g. dotfiles like .htaccess).
 myConfig :: Configuration
 myConfig = defaultConfiguration { ignoreFile = const False }
 
-----------------------------------------------------------------------
+myFeedConfig :: FeedConfiguration
+myFeedConfig = FeedConfiguration
+  { feedTitle       = "House Jeffries"
+  , feedDescription = ""
+  , feedAuthorName  = "Ian G. Jeffries"
+  , feedAuthorEmail = "ian@housejeffries.com"
+  , feedRoot        = "http://housejeffries.com"
+  }
+
 main :: IO ()
 main = hakyllWith myConfig $ do
 
@@ -29,48 +38,53 @@ main = hakyllWith myConfig $ do
 
   match "templates/*" $ compile templateCompiler
 
-  match "_content/index.md" $ do
-    route $ setExtension "html" `composeRoutes` dropFirstDir
+  match "_pages/1/page.md" $ do
+    route $ constRoute "index.html"
     compile $ pandocCompiler
-      >>= loadAndApplyTemplate "templates/base.html" defaultContext
+      >>= loadAndApplyTemplate "templates/base.html" (defaultContext <> pageIdContext)
       >>= relativizeUrls
 
-  match "_content/articles/*" $ do
-    route $ niceRoute `composeRoutes` dropFirstDir
+  -- Output pages as HTML.
+  match "_pages/*/page.md" $ do
+    route $ customRoute (\x -> let pageId = unsafePageId . splitDirectories . toFilePath $ x
+                               in "page" </> pageId </> "index.html")
     compile $ pandocCompiler
-      >>= loadAndApplyTemplate "templates/page.html" postCtx
-      >>= saveSnapshot "content"
-      >>= loadAndApplyTemplate "templates/base.html" postCtx
+      >>= loadAndApplyTemplate "templates/page.html" pageContext
+      >>= saveSnapshot "pageSnapshot"
+      >>= loadAndApplyTemplate "templates/base.html" pageContext
       >>= relativizeUrls
       >>= removeIndexHtml
 
-  match "_content/articles/*" $ version "md" $ do
-    route dropFirstDir -- Assumes all files in /articles/* are .md files.
+  match "_pages/*/*" $ do
+    route $ customRoute (("page" </>) . dropDirectory1 . toFilePath)
     compile copyFileCompiler
 
   create ["feed.xml"] $ do
     route idRoute
     compile $ do
-      let feedCtx = postCtx <> bodyField "description"
-      posts <- recentFirst =<< loadAllSnapshots ("_content/articles/*" .&&. hasNoVersion) "content"
-      renderAtom myFeedConfig feedCtx posts
+      let feedCtx = pageContext <> bodyField "description"
+      pages <- recentFirst =<< loadAllSnapshots ("_pages/*" .&&. hasNoVersion) "pageSnapshot"
+      renderAtom myFeedConfig feedCtx pages
 
-----------------------------------------------------------------------
-postCtx :: Context String
-postCtx = dateField "published" "%B %e, %Y" -- e.g. February 3, 2015
-            <> defaultContext
+pageContext :: Context String
+pageContext = dateField "published" "%B %e, %Y" -- e.g. February 3, 2015
+           <> pageIdContext
+           <> defaultContext
 
-----------------------------------------------------------------------
-myFeedConfig :: FeedConfiguration
-myFeedConfig = FeedConfiguration
-  { feedTitle       = "House Jeffries"
-  , feedDescription = ""
-  , feedAuthorName  = "Ian G. Jeffries"
-  , feedAuthorEmail = "ian@housejeffries.com"
-  , feedRoot        = "http://housejeffries.com"
-  }
+unsafePageId :: [FilePath] -> String
+unsafePageId xs =
+  let pageId = xs !! 1
+  in case readMaybe pageId :: Maybe Int of
+    Nothing -> error $ "Page ID isn't an integer: " <> pageId
+    Just _  -> pageId
 
-----------------------------------------------------------------------
+pageIdContext :: Context a
+pageIdContext = field "pageId" $ return . unsafePageId . splitDirectories . toFilePath . itemIdentifier
+
+--------------------------------------------------
+-- * Index trick
+--------------------------------------------------
+
 -- | Create "foo/index.html" pages instead of "foo.html" pages. These show up as
 -- just "foo" in the browser, which looks nicer than "foo.html".
 --
@@ -79,8 +93,8 @@ myFeedConfig = FeedConfiguration
 --
 -- Though he probably got the idea from here:
 -- http://yannesposito.com/Scratch/en/blog/Hakyll-setup/
-niceRoute :: Routes
-niceRoute = customRoute createIndexRoute
+indexTrick :: Routes
+indexTrick = customRoute createIndexRoute
   where
     createIndexRoute ident =
       takeDirectory p </> takeBaseName p </> "index.html"
@@ -100,7 +114,10 @@ removeIndexStr url = case splitFileName url of
   where
     isLocal uri = not ("://" `isInfixOf` uri)
 
-----------------------------------------------------------------------
+--------------------------------------------------
+-- * General tools
+--------------------------------------------------
+
 dropFirstDir :: Routes
 dropFirstDir = customRoute $ dropDirectory1 . toFilePath
 

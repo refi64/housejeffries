@@ -1,11 +1,9 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 
--- * The biggest thing going down here is a URL hack.
+-- * The biggest things going down here are URL hacks.
 --
--- I don't want index.html to show up in URLs.
---
--- I want pages to have nice URLs without trailing slashes.
+-- I want HTML pages to have nice URLs without trailing slashes.
 -- URLs with a slash should redirect to a URL without one:
 --
 --   http://housejeffries.com/page/4
@@ -16,27 +14,21 @@
 --
 -- I want both of these things to work at the same time.
 --
--- In order to get the first I have rewrite rules in resources/.htaccess.
--- Note that that this takes place on the server, so just because things
--- are working fine locally doesn't mean they will be after pushing.
+-- To get this I do the following:
 --
--- This however breaks relative links to other resources. A link such as
--- ./image.jpg (that resolves to /pages/2/image.jpg) becomes a link
--- that resolves to /pages/image.jpg. My first way to fix this was just
--- to write the link to ./2/image.jpg, but that was sad.
+-- A) I have hakyll write HTML files to foo/index.html instead of foo.html.
 --
--- Currently I use the <base> URL element, but only in non-homepage pages.
+-- B) I have rewrite rules in resources/.htaccess. These redirect
+-- foo/index.html and foo/ to foo.
 --
--- Note that <base> affects both anchor links within documents
--- as well as links to other documents, but it seems to be working
--- at the moment. I think I'm in good shape since I'm just setting
--- the resolving path to where the resource actually lives, not using
--- <base> to lie about where it's located.
+-- Note that this means there can be no document-relative links
+-- in the deployed site, because the foo/ to foo change moves them
+-- up a directory.
 --
--- Also note that Hakyll does some rewriting too, so /css/minimal.css
--- in the template becomes ../../css/minimal.css when viewed in an
--- output file such as page/2/index.html. TODO: find out why it does
--- this.
+-- C) I rewrite all links within HTML pages to be site-root relative.
+-- This way they work on both local and public servers (unlike absolute
+-- links) and they survive the .htaccess redirects (unlike document-relative
+-- links).
 
 module Main where
 
@@ -79,6 +71,10 @@ main = hakyllWith myConfig $ do
   match "_pages/1/page.md" $ do
     route $ constRoute "index.html"
     compile $ do
+      -- This strategy for embedding template language directly into the markdown
+      -- file comes from here:
+      --
+      --     https://groups.google.com/d/msg/hakyll/ooMEwuiQZ24/dbWzHhGxuRIJ
       pages <- recentFirst =<< loadAll (complement "_pages/1/page.md" .&&.  "_pages/*/page.md")
       let ctx = pageIdContext
              <> listField "pages" pageContext (return pages)
@@ -88,17 +84,17 @@ main = hakyllWith myConfig $ do
         >>= applyAsTemplate ctx
         >>= renderPandoc
         >>= loadAndApplyTemplate "templates/base.html" ctx
-        >>= relativizeUrls
+        >>= removeIndexFromLinks
 
   match "_pages/*/page.md" $ do
     route $ customRoute (\x -> let pageId = unsafePageId . splitDirectories . toFilePath $ x
                                in "page" </> pageId </> "index.html")
     compile $ pandocCompiler
       >>= loadAndApplyTemplate "templates/page.html" pageContext
+      >>= removeIndexFromLinks
+      >>= siteRelativeUrls -- Must come before saveSnapshot so it will be applied to feed content.
       >>= saveSnapshot "pageSnapshot"
       >>= loadAndApplyTemplate "templates/base.html" pageContext
-      >>= relativizeUrls
-      >>= removeIndexHtml
 
   match "_pages/*/*" $ do
     route $ customRoute (("page" </>) . dropDirectory1 . toFilePath)
@@ -116,6 +112,10 @@ main = hakyllWith myConfig $ do
 
       renderAtom myFeedConfig feedCtx pages
 
+--------------------------------------------------
+-- * Page Ids
+--------------------------------------------------
+
 pageContext :: Context String
 pageContext = dateField "published" "%B %e, %Y" -- e.g. February 3, 2015
            <> pageIdContext
@@ -128,33 +128,43 @@ unsafePageId :: [FilePath] -> String
 unsafePageId xs =
   let pageId = xs !! 1
   in case readMaybe pageId :: Maybe Int of
-    Nothing -> error $ "Page ID isn't an integer: " <> pageId
+    Nothing -> error ("Page ID isn't an integer: " <> pageId)
     Just _  -> pageId
+
+--------------------------------------------------
+-- * Site Relativization
+--------------------------------------------------
+
+-- Rewrite document-relative URLs to site-relative URLs.
+--
+-- NOTE: This doesn't work for document-relative URLs
+-- other than ones starting with "./" (e.g. not "../").
+siteRelativeUrls :: Item String -> Compiler (Item String)
+siteRelativeUrls item = do
+  route <- getRoute (itemIdentifier item)
+  case route of
+    Nothing -> error "No route for Item."
+    Just a  -> return (siteRelativize a <$> item)
+
+-- NOTE: This doesn't work for document-relative URLs
+-- other than ones starting with "./" (e.g. not "../").
+siteRelativize
+  :: String -- | Identifier path
+  -> String -- | HTML to relativize
+  -> String -- | Resulting HTML
+siteRelativize path = withUrls f
+  where
+    f ('.':'/':xs) = "/" <> removeIndexStr path <> xs
+    f xs           = xs
 
 --------------------------------------------------
 -- * Index trick
 --------------------------------------------------
 
--- | Create "foo/index.html" pages instead of "foo.html" pages.
---
--- Code from here:
--- https://raw.githubusercontent.com/Abizern/hblog/master/hblog.hs
---
--- Though he probably got the idea from here:
--- http://yannesposito.com/Scratch/en/blog/Hakyll-setup/
-indexTrick :: Routes
-indexTrick = customRoute createIndexRoute
-  where
-    createIndexRoute ident =
-      takeDirectory p </> takeBaseName p </> "index.html"
-      where
-        p = toFilePath ident
+-- | Replace local URLs of the form foo/bar/index.html with foo/bar.
+removeIndexFromLinks :: Item String -> Compiler (Item String)
+removeIndexFromLinks item = return $ fmap (withUrls removeIndexStr) item
 
--- | Replace an url of the form foo/bar/index.html by foo/bar
-removeIndexHtml :: Item String -> Compiler (Item String)
-removeIndexHtml item = return $ fmap (withUrls removeIndexStr) item
-
--- | Removes the .html component of a URL if it is local
 removeIndexStr :: String -> String
 removeIndexStr url = case splitFileName url of
   (dir, "index.html") | isLocal dir -> dir
@@ -168,7 +178,7 @@ removeIndexStr url = case splitFileName url of
 --------------------------------------------------
 
 dropFirstDir :: Routes
-dropFirstDir = customRoute $ dropDirectory1 . toFilePath
+dropFirstDir = customRoute (dropDirectory1 . toFilePath)
 
 -- | Comments and code from here:
 -- https://hackage.haskell.org/package/shake-0.3.4/docs/src/Development-Shake-FilePath.html#dropDirectory1

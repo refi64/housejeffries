@@ -78,9 +78,17 @@ main = hakyllWith myConfig $ do
 
   match "_pages/1/page.md" $ do
     route $ constRoute "index.html"
-    compile $ pandocCompiler
-      >>= loadAndApplyTemplate "templates/base.html" homepageContext
-      >>= relativizeUrls
+    compile $ do
+      pages <- recentFirst =<< loadAll (complement "_pages/1/page.md" .&&.  "_pages/*/page.md")
+      let ctx = pageIdContext
+             <> listField "pages" pageContext (return pages)
+             <> boolField "isHomepage" (const True)
+             <> defaultContext
+      getResourceBody
+        >>= applyAsTemplate ctx
+        >>= renderPandoc
+        >>= loadAndApplyTemplate "templates/base.html" ctx
+        >>= relativizeUrls
 
   match "_pages/*/page.md" $ do
     route $ customRoute (\x -> let pageId = unsafePageId . splitDirectories . toFilePath $ x
@@ -108,15 +116,10 @@ main = hakyllWith myConfig $ do
 
       renderAtom myFeedConfig feedCtx pages
 
-homepageContext :: Context String
-homepageContext = pageIdContext
-               <> boolField "isHomepage" (const True)
-               <> defaultContext -- Goes last so that it will be overwritten in case of conflict.
-
 pageContext :: Context String
 pageContext = dateField "published" "%B %e, %Y" -- e.g. February 3, 2015
            <> pageIdContext
-           <> defaultContext
+           <> defaultContext -- Goes last so that it will be overwritten in case of conflict.
 
 pageIdContext :: Context a
 pageIdContext = field "pageId" $ return . unsafePageId . splitDirectories . toFilePath . itemIdentifier
@@ -147,11 +150,11 @@ indexTrick = customRoute createIndexRoute
       where
         p = toFilePath ident
 
--- Replace an url of the form foo/bar/index.html by foo/bar
+-- | Replace an url of the form foo/bar/index.html by foo/bar
 removeIndexHtml :: Item String -> Compiler (Item String)
 removeIndexHtml item = return $ fmap (withUrls removeIndexStr) item
 
--- Removes the .html component of a URL if it is local
+-- | Removes the .html component of a URL if it is local
 removeIndexStr :: String -> String
 removeIndexStr url = case splitFileName url of
   (dir, "index.html") | isLocal dir -> dir

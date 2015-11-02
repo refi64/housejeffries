@@ -90,10 +90,11 @@ main = hakyllWith myConfig $ do
     route $ customRoute (\x -> let pageId = unsafePageId . splitDirectories . toFilePath $ x
                                in "page" </> pageId </> "index.html")
     compile $ pandocCompiler
-      >>= loadAndApplyTemplate "templates/page.html" pageContext
+      >>= loadAndApplyTemplate "templates/page-core.html" pageContext
       >>= removeIndexFromLinks
       >>= siteRelativeUrls -- Must come before saveSnapshot so it will be applied to feed content.
       >>= saveSnapshot "pageSnapshot"
+      >>= loadAndApplyTemplate "templates/page-after-rss-serialization.html" pageContext
       >>= loadAndApplyTemplate "templates/base.html" pageContext
 
   match "_pages/*/*" $ do

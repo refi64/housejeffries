@@ -1,11 +1,13 @@
 # About
 
-This is the source for Ian Jeffries' [personal website](http://housejeffries.com/).
+This is the [Hakyll](http://jaspervdj.be/hakyll/) generator for Ian Jeffries' [personal website](http://housejeffries.com/).
 
-The final output is generated with [Hakyll](http://jaspervdj.be/hakyll/).
+Content is stored separately at the [housejeffries-pages](https://github.com/housejeffries-pages) GitHub organization.
 
 # Run
 
-`cabal run rebuild`
+Create a directory at `./_pages`.
 
-(`cabal run build` works too, but doesn't propogate file deletions.)
+Place each repo from housejeffries-pages in it.
+
+Run `stack exec site build`.

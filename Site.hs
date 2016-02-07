@@ -19,7 +19,7 @@
 -- A) I have hakyll write HTML files to foo/index.html instead of foo.html.
 --
 -- B) I have rewrite rules in resources/.htaccess. These redirect
--- foo/index.html and foo/ to foo.
+-- foo/index.html to foo/ and then foo/ to foo.
 --
 -- Note that this means there can be no document-relative links
 -- in the deployed site, because the foo/ to foo change moves them

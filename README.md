@@ -1,13 +1,13 @@
 # About
 
-This is the [Hakyll](http://jaspervdj.be/hakyll/) generator for Ian Jeffries' [personal website](http://housejeffries.com/).
+This is the static site generator for Ian Jeffries' [personal website](http://housejeffries.com/).
 
 Content is stored separately at the [housejeffries-pages](https://github.com/housejeffries-pages) GitHub organization.
 
 # Run
 
-Create a directory at `./_pages`.
+Place each repo from the housejeffries-pages GitHub organization in a directory.
 
-Place each repo from housejeffries-pages in it.
+Set `Types.pageDir` to that location.
 
-Run `stack exec site build`.
+Run `stack build; stack exec main`.
